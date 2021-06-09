@@ -60,11 +60,10 @@ method Main()
 {
     var code := va_code_Copy64(Public);
     var ts := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
-    // var b := checkConstantTime("Copy64", code, ts);
     var b := checkConstantTime("Copy64", code, ts);
 
     if (b == false) {
-        print ("[!] Not constant time");
+        print ("[!] Not constant time\n");
     } else {
         print("[+] Constant time verified successfully\n");
         
@@ -72,7 +71,7 @@ method Main()
         b := checkLeakage("Copy64", code, ts, tsExpected);
 
         if (b == false) {
-            print ("[!] Leakage detected");
+            print ("[!] Leakage detected\n");
         } else {
             print("[+] No leakage detected\n");
             printHeader(GCC);
