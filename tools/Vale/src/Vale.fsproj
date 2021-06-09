@@ -6,13 +6,16 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>aed5b384-05c9-4391-ada9-b35089ec410d</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <RootNamespace>Vale</RootNamespace>
     <AssemblyName>Vale</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <Name>Vale</Name>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -62,6 +65,9 @@ fsyacc --module "Parse" -v $(ProjectDir)parse.fsy -o parse.fs</PreBuildEvent>
     <Compile Include="ast.fs" />
     <Compile Include="ast_util.fs" />
     <Compile Include="parse_util.fs" />
+    <Content Include="App.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <FsYacc Include="parse.fsy">
       <OtherFlags>--module Parser</OtherFlags>
     </FsYacc>
@@ -126,6 +132,12 @@ fsyacc --module "Parse" -v $(ProjectDir)parse.fsy -o parse.fs</PreBuildEvent>
     <Reference Include="BoogieVCGeneration">
       <HintPath>..\..\Dafny\BoogieVCGeneration.dll</HintPath>
     </Reference>
+    <Reference Include="FSharp.Core">
+      <HintPath>packages\FSharp.Core.4.5.2\lib\net45\FSharp.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="FsLexYacc.Runtime">
+      <HintPath>packages\FsLexYacc.Runtime.10.2.0\lib\netstandard2.0\FsLexYacc.Runtime.dll</HintPath>
+    </Reference>
     <Reference Include="Provers.SMTLib">
       <HintPath>..\..\Dafny\Provers.SMTLib.dll</HintPath>
     </Reference>
@@ -141,9 +153,6 @@ fsyacc --module "Parse" -v $(ProjectDir)parse.fsy -o parse.fs</PreBuildEvent>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\Dafny\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="FsLexYacc.Runtime">
-      <HintPath>..\..\fsharp4.0\FsLexYacc.Runtime.dll</HintPath>
-    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
@@ -152,6 +161,15 @@ fsyacc --module "Parse" -v $(ProjectDir)parse.fsy -o parse.fs</PreBuildEvent>
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
   </ItemGroup>
+  <Import Project="packages\FsLexYacc.10.2.0\build\FsLexYacc.targets" Condition="Exists('packages\FsLexYacc.10.2.0\build\FsLexYacc.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\FsLexYacc.10.2.0\build\FsLexYacc.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\FsLexYacc.10.2.0\build\FsLexYacc.targets'))" />
+    <Error Condition="!Exists('packages\FsLexYacc.10.2.0\build\fsyacc\netcoreapp3.1\FsLexYacc.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\FsLexYacc.10.2.0\build\fsyacc\netcoreapp3.1\FsLexYacc.targets'))" />
+  </Target>
+  <Import Project="packages\FsLexYacc.10.2.0\build\fsyacc\netcoreapp3.1\FsLexYacc.targets" Condition="Exists('packages\FsLexYacc.10.2.0\build\fsyacc\netcoreapp3.1\FsLexYacc.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

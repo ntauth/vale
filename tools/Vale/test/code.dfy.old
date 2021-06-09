@@ -1,0 +1,56 @@
+// parsing ././calc.vad
+// parsing ././common.vad
+function F(x:int):int { x + 25 }
+function G(x:int, y:int):int { x + y }
+
+function method{:opaque} va_code_Q():va_code
+{
+  va_Block(va_CNil())
+}
+
+lemma va_lemma_Q(va_b0:va_codes, va_s0:va_state, va_sN:va_state)
+  returns (va_bM:va_codes, va_sM:va_state)
+  requires va_require(va_b0, va_code_Q(), va_s0, va_sN)
+  ensures  va_ensure(va_b0, va_bM, va_s0, va_sM, va_sN)
+  requires va_get_ok(va_s0)
+  ensures  va_get_ok(va_sM)
+  ensures  va_state_eq(va_sM, va_modify_ok(va_sM, va_s0))
+{
+  reveal_va_code_Q();
+  var va_old_s:va_state := va_s0;
+  ghost var va_ltmp1, va_cM:va_code, va_ltmp2 := va_lemma_block(va_b0, va_s0, va_sN);
+  va_sM := va_ltmp1;
+  va_bM := va_ltmp2;
+  var va_b1:va_codes := va_get_block(va_cM);
+  calc {
+    F(100);
+    100 + 25;
+    {
+      assert 100 + 25 == 120 + 5;  // line 14 column 11 of file ././calc.vad
+    }
+    120 + 5;
+  <=
+    {
+      assert true;  // line 16 column 11 of file ././calc.vad
+    }
+    G(120, 5);
+  ==
+    {
+      assert true ==> true;  // line 18 column 11 of file ././calc.vad
+    }
+    {
+      assert false ==> 5 < 10;  // line 19 column 11 of file ././calc.vad
+    }
+    G(120, 5);
+  }
+  calc ==> {
+    false;
+  <==>
+    false && true;
+    {
+      assert 100 + 25 == 120 + 5;  // line 28 column 11 of file ././calc.vad
+    }
+    true;
+  }
+  va_sM := va_lemma_empty(va_s0, va_sM);
+}

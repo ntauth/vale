@@ -1,0 +1,85 @@
+include{:from BASE} "arch/x64/decls.vad"
+include{:from BASE} "arch/x64/decls64.vad"
+// include{:from BASE}{:verbatim} "arch/x64/vale.i.dfy"
+// include{:from BASE}{:verbatim} "lib/util/words_and_bytes.s.dfy"
+// include{:from BASE}{:verbatim} "lib/util/dafny_wrappers.i.dfy"
+
+include{:from BASE}{:verbatim} "arch/x64/leakage.i.dfy"
+include{:from BASE}{:verbatim} "arch/x64/print.s.dfy"
+
+#verbatim
+import opened x64def_s_temp = x64_def_s
+import opened x64vale_temp = x64_vale_i
+import opened x64decls_temp = x64_decls_i
+import opened x64decls64_temp = x64_decls64_i
+import opened x64_print_s_temp = x64_print_s
+import opened x64_const_time_i_temp = x64_const_time_i
+#endverbatim
+
+procedure{:timeLimitMultiplier 2} Copy64(inline taint:taint, ghost src_id:heaplet_id, ghost dst_id:heaplet_id)
+    requires/ensures
+        rsi % 8 == 0;
+        rdi % 8 == 0;
+        rsi + 64 <= rdi || rdi + 64 <= rsi;
+        // forall i:int {mem?[i]}{ValidSrcAddr(mem, src_id, i, 64, taint)} :: rsi <= i < rsi + 64 && i % 8 == 0 ==> ValidSrcAddr(mem, src_id, i, 64, taint);
+        // forall i:int {mem?[i]}{ValidDstAddr(mem, dst_id, i, 64)} :: rdi <= i < rdi + 64 && i % 8 == 0 ==> ValidDstAddr(mem, dst_id, i, 64);
+        ValidSrcAddrs(mem, src_id, rsi, 64, taint, 64);
+        ValidDstAddrs(mem, dst_id, rdi, 64, 64);
+        src_id != dst_id;
+    ensures
+        // forall i :: 0 <= i < 64 && i % 8 == 0 ==> mem[rdi + i] == mem[rsi + i];
+        forall i :: 0 <= i < 64 && i % 8 == 0 ==> mem[dst_id].mem64[rdi + i] == mem[src_id].mem64[rsi + i];
+    reads
+        rsi; rdi;
+    modifies
+        rax; rbx; rcx; rdx;
+        mem;
+{
+    Load64(rax, rsi, 0, taint, src_id);
+    Load64(rbx, rsi, 8, taint, src_id);
+    Load64(rcx, rsi, 16, taint, src_id);
+    Load64(rdx, rsi, 24, taint, src_id);
+    Store64(rdi, rax, 0, taint, dst_id);
+    Store64(rdi, rbx, 8, taint, dst_id);
+    Store64(rdi, rcx, 16, taint, dst_id);
+    Store64(rdi, rdx, 24, taint, dst_id);
+    Load64(rax, rsi, 32, taint, src_id);
+    Load64(rbx, rsi, 40, taint, src_id);
+    Load64(rcx, rsi, 48, taint, src_id);
+    Load64(rdx, rsi, 56, taint, src_id);
+    Store64(rdi, rax, 32, taint, dst_id);
+    Store64(rdi, rbx, 40, taint, dst_id);
+    Store64(rdi, rcx, 48, taint, dst_id);
+    Store64(rdi, rdx, 56, taint, dst_id);
+}
+
+#verbatim
+
+method Main()
+    decreases *
+{
+    var code := va_code_Copy64(Public);
+    var ts := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
+    // var b := checkConstantTime("Copy64", code, ts);
+    var b := checkConstantTime("Copy64", code, ts);
+
+    if (b == false) {
+        print ("[!] Not constant time");
+    } else {
+        print("[+] Constant time verified successfully\n");
+        
+        var tsExpected := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
+        b := checkLeakage("Copy64", code, ts, tsExpected);
+
+        if (b == false) {
+            print ("[!] Leakage detected");
+        } else {
+            print("[+] No leakage detected\n");
+            printHeader(GCC);
+            printProc("Copy64", code, 0, 1, GCC);
+            printFooter(GCC);
+        }
+    }
+}
+
+#endverbatim

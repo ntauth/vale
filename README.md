@@ -30,6 +30,23 @@ You can also see our academic paper describing Vale:
 > In Proceedings of the USENIX Security Symposium, 2017.  
 > Distinguished Paper Award
 
+# Examples
+The examples can be found in `test/`.
+## memcpy (x64)
+1. Build Dafny artifacts:
+   ```bash
+    mono ../bin/vale.exe -includeSuffix .vad .dfy -sourceFrom BASE ../src/ -destFrom BASE ../obj/ -in ./memcpy_checked.vad -out ../obj/test/memcpy_checked.dfy
+    ```
+2. **(Needs fixing)** Rename `decls*.gen.dfy` to `decls*.dfy` in `obj/arch/x64`. Open `decls64.dfy` and `include "decls.dfy"` instead of `include "decls.gen.dfy"`.
+2. Verify and produce an executable:
+   ```bash
+   mono ../bin/Dafny.exe /ironDafny /allocated:1 /induction:1 /compile:1 /timeLimit:30 /errorLimit:1 /errorTrace:0 /trace /noNLarith /z3exe:/usr/bin/z3 ../obj/test/memcpy_checked.dfy 1> ../obj/test/memcpy_checked.dfy.verified.tmp 2>&1
+   ```
+3. Generate the assembly after verifying constant time and leakage properties:
+    ```bash
+    mono ../obj/test/memcpy_checked.exe
+    ```
+
 # License
 
 Vale is licensed under the Apache license in the [LICENSE](./LICENSE) file.
