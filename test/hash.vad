@@ -1,0 +1,199 @@
+/**
+ * @brief Simple djb2 hash function implementation
+ *
+djb2:
+.LFB0:
+        .cfi_startproc
+        endbr64
+        pushq   %rbp
+        .cfi_def_cfa_offset 16
+        .cfi_offset 6, -16
+        movq    %rsp, %rbp
+        .cfi_def_cfa_register 6
+        movq    %rdi, -24(%rbp)
+        movq    %rsi, -32(%rbp)
+        movq    $5381, -16(%rbp)
+        movq    $0, -8(%rbp)
+        jmp     .L2
+.L3:
+        movq    -16(%rbp), %rax
+        salq    $5, %rax
+        movq    %rax, %rdx
+        movq    -16(%rbp), %rax
+        leaq    (%rdx,%rax), %rcx
+        movq    -24(%rbp), %rdx
+        movq    -8(%rbp), %rax
+        addq    %rdx, %rax
+        movzbl  (%rax), %eax
+        movzbl  %al, %eax
+        addq    %rcx, %rax
+        addq    %rax, -16(%rbp)
+        addq    $1, -8(%rbp)
+.L2:
+        movq    -8(%rbp), %rax
+        cmpq    -32(%rbp), %rax
+        jb      .L3
+        movq    -16(%rbp), %rax
+        popq    %rbp
+        .cfi_def_cfa 7, 8
+        ret
+        .cfi_endproc
+*/
+include{:from BASE} "arch/x64/decls.vad"
+include{:from BASE} "arch/x64/decls64.vad"
+
+include{:from BASE}{:verbatim} "arch/x64/leakage.i.dfy"
+include{:from BASE}{:verbatim} "arch/x64/print.s.dfy"
+
+#verbatim
+import opened x64def_s_temp = x64_def_s
+import opened x64vale_temp = x64_vale_i
+import opened x64decls_temp = x64_decls_i
+import opened x64decls64_temp = x64_decls64_i
+import opened x64_print_s_temp = x64_print_s
+import opened x64_const_time_i_temp = x64_const_time_i
+#endverbatim
+
+/// __declspec(naked)
+procedure {:timeLimitMultiplier 2}{:refined} djb2(
+    inline in_taint:taint,
+    inline out_taint:taint,
+    ghost in_id:heaplet_id,
+    ghost stack_id:heaplet_id,
+    ghost input:seq(byte),
+    ghost len:uint32
+)
+/**
+djb2:
+.LFB0:
+        .cfi_startproc
+        endbr64
+        pushq   %rbp
+        .cfi_def_cfa_offset 16
+        .cfi_offset 6, -16
+        movq    %rsp, %rbp
+        .cfi_def_cfa_register 6
+        movq    %rdi, -24(%rbp)
+        movq    %rsi, -32(%rbp)
+        movq    $5381, -8(%rbp)
+        movq    $0, -16(%rbp)
+        jmp     .L2
+.L3:
+        movq    -8(%rbp), %rax
+        salq    $5, %rax
+        movq    %rax, %rdx
+        movq    -8(%rbp), %rax
+        leaq    (%rdx,%rax), %rcx
+        movq    -24(%rbp), %rdx
+        movq    -16(%rbp), %rax
+        addq    %rdx, %rax
+        movzbl  (%rax), %eax
+        movzbl  %al, %eax
+        addq    %rcx, %rax
+        addq    %rax, -8(%rbp)
+        addq    $1, -16(%rbp)
+.L2:
+        movq    -16(%rbp), %rax
+        cmpq    -32(%rbp), %rax
+        jb      .L3
+        movq    -8(%rbp), %rax
+        popq    %rbp
+        .cfi_def_cfa 7, 8
+        ret
+        .cfi_endproc
+*/
+    requires/ensures
+        HasStackSlots(stack, 8);
+        // rsi % 8 == 0;
+        // rdi % 8 == 0;
+        // rsi + 64 <= rdi || rdi + 64 <= rsi;
+        // forall i:int {mem?[i]}{ValidSrcAddr(mem, src_id, i, 64, taint)} :: rsi <= i < rsi + 64 && i % 8 == 0 ==> ValidSrcAddr(mem, src_id, i, 64, taint);
+        // forall i:int {mem?[i]}{ValidDstAddr(mem, dst_id, i, 64)} :: rdi <= i < rdi + 64 && i % 8 == 0 ==> ValidDstAddr(mem, dst_id, i, 64);
+        // ValidSrcAddrs(mem, src_id, rsi, 64, taint, 64);
+        // ValidDstAddrs(mem, dst_id, rdi, 64, 64);
+        // src_id != dst_id;
+    // ensures
+        // forall i :: 0 <= i < 64 && i % 8 == 0 ==> mem[dst_id].mem64[rdi + i] == mem[src_id].mem64[rsi + i];
+    reads
+        rsi; rdi;
+    modifies
+        rbp; rax; rcx; rdx;
+        mem;
+        stack;
+{
+    // ghost var stk_offset_rbp:int := 0;
+    // ghost var stk_offset_in  := 24;
+    // ghost var stk_offset_len := 32;
+
+    StoreStack64(0, rbp);
+    // Mov64(rbp, rsp); @todo: Add rsp as Ins?
+    StoreStack64(6, rdi);
+}
+
+procedure {:refined} main()
+/**
+main:
+.LFB1:
+        .cfi_startproc
+        endbr64
+        pushq   %rbp
+        .cfi_def_cfa_offset 16
+        .cfi_offset 6, -16
+        movq    %rsp, %rbp
+        .cfi_def_cfa_register 6
+        subq    $48, %rsp
+        movl    %edi, -36(%rbp)
+        movq    %rsi, -48(%rbp)
+        movabsq $7016996765293437281, %rax
+        movq    %rax, -18(%rbp)
+        movw    $97, -10(%rbp)
+        leaq    -18(%rbp), %rax
+        movl    $10, %esi
+        movq    %rax, %rdi
+        call    djb2
+        movq    %rax, -8(%rbp)
+        movq    -8(%rbp), %rax
+        movq    %rax, %rsi
+        leaq    .LC0(%rip), %rdi
+        movl    $0, %eax
+        call    printf@PLT
+        nop
+        leave
+        .cfi_def_cfa 7, 8
+        ret
+        .cfi_endproc
+*/
+{
+
+}
+
+#verbatim
+
+method Main()
+    decreases *
+{
+    var code := va_code_djb2(Secret, Public);
+    // var ts := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
+    // var b := checkConstantTime("Hash", code, ts);
+    var b := true;
+
+    if (b == false) {
+        print ("[!] Not constant time\n");
+    } else {
+        print("[+] Constant time verified successfully\n");
+        
+        // var tsExpected := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
+        // b := checkLeakage("Hash", code, ts, tsExpected);
+
+        if (b == false) {
+            print ("[!] Leakage detected\n");
+        } else {
+            print("[+] No leakage detected\n");
+            printHeader(GCC);
+            printProc("djb2", code, 0, 1, GCC);
+            printFooter(GCC);
+        }
+    }
+}
+
+#endverbatim
