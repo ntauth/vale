@@ -118,6 +118,7 @@ djb2:
         rsi; rdi;
     modifies
         rbp; rax; rcx; rdx;
+        efl;
         mem;
         stack;
 {
@@ -125,6 +126,7 @@ djb2:
     // ghost var stk_offset_in  := 24;
     // ghost var stk_offset_len := 32;
 
+    Xor64(rax, rax);
     StoreStack64(0, rbp);
     // Mov64(rbp, rsp); @todo: Add rsp as Ins?
     StoreStack64(6, rdi);

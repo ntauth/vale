@@ -13,7 +13,11 @@ import opened x64_print_s_temp = x64_print_s
 import opened x64_const_time_i_temp = x64_const_time_i
 #endverbatim
 
-procedure{:timeLimitMultiplier 2} Copy64(inline taint:taint, ghost src_id:heaplet_id, ghost dst_id:heaplet_id)
+procedure {:timeLimitMultiplier 2}{:refined} Copy64(
+    inline taint: taint,
+    ghost src_id: heaplet_id,
+    ghost dst_id: heaplet_id
+)
     requires/ensures
         HasStackSlots(stack, 2);
         // rsi % 8 == 0;
@@ -54,7 +58,8 @@ procedure{:timeLimitMultiplier 2} Copy64(inline taint:taint, ghost src_id:heaple
     Store64(rdi, rcx, 48, taint, dst_id);
     Store64(rdi, rdx, 56, taint, dst_id);
     // Scrub non-volatile regs to fix leak
-    // Xor64(rax, rax); XORs are not working for some reason?
+    // @fix: XOR semantics do not reset the taint
+    // Xor64(rax, rax);
     // Xor64(rbx, rbx);
     // Xor64(rcx, rcx);
     // Xor64(rdx, rdx);
