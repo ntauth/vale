@@ -1,44 +1,7 @@
 /**
  * @brief Simple djb2 hash function implementation
  *
-djb2:
-.LFB0:
-        .cfi_startproc
-        endbr64
-        pushq   %rbp
-        .cfi_def_cfa_offset 16
-        .cfi_offset 6, -16
-        movq    %rsp, %rbp
-        .cfi_def_cfa_register 6
-        movq    %rdi, -24(%rbp)
-        movq    %rsi, -32(%rbp)
-        movq    $5381, -16(%rbp)
-        movq    $0, -8(%rbp)
-        jmp     .L2
-.L3:
-        movq    -16(%rbp), %rax
-        salq    $5, %rax
-        movq    %rax, %rdx
-        movq    -16(%rbp), %rax
-        leaq    (%rdx,%rax), %rcx
-        movq    -24(%rbp), %rdx
-        movq    -8(%rbp), %rax
-        addq    %rdx, %rax
-        movzbl  (%rax), %eax
-        movzbl  %al, %eax
-        addq    %rcx, %rax
-        addq    %rax, -16(%rbp)
-        addq    $1, -8(%rbp)
-.L2:
-        movq    -8(%rbp), %rax
-        cmpq    -32(%rbp), %rax
-        jb      .L3
-        movq    -16(%rbp), %rax
-        popq    %rbp
-        .cfi_def_cfa 7, 8
-        ret
-        .cfi_endproc
-*/
+**/
 include{:from BASE} "arch/x64/decls.vad"
 include{:from BASE} "arch/x64/decls64.vad"
 
@@ -54,14 +17,13 @@ import opened x64_print_s_temp = x64_print_s
 import opened x64_const_time_i_temp = x64_const_time_i
 #endverbatim
 
+
 /// __declspec(naked)
 procedure {:timeLimitMultiplier 2}{:refined} djb2(
     inline in_taint:taint,
     inline out_taint:taint,
     ghost in_id:heaplet_id,
-    ghost stack_id:heaplet_id,
-    ghost input:seq(byte),
-    ghost len:uint32
+    ghost stack_id:heaplet_id
 )
 /**
 djb2:
@@ -102,34 +64,67 @@ djb2:
         ret
         .cfi_endproc
 */
+    lets
+        input @= rdi; input_len @= rsi;
     requires/ensures
-        HasStackSlots(stack, 8);
-        // rsi % 8 == 0;
-        // rdi % 8 == 0;
-        // rsi + 64 <= rdi || rdi + 64 <= rsi;
-        // forall i:int {mem?[i]}{ValidSrcAddr(mem, src_id, i, 64, taint)} :: rsi <= i < rsi + 64 && i % 8 == 0 ==> ValidSrcAddr(mem, src_id, i, 64, taint);
-        // forall i:int {mem?[i]}{ValidDstAddr(mem, dst_id, i, 64)} :: rdi <= i < rdi + 64 && i % 8 == 0 ==> ValidDstAddr(mem, dst_id, i, 64);
-        // ValidSrcAddrs(mem, src_id, rsi, 64, taint, 64);
-        // ValidDstAddrs(mem, dst_id, rdi, 64, 64);
-        // src_id != dst_id;
-    // ensures
-        // forall i :: 0 <= i < 64 && i % 8 == 0 ==> mem[dst_id].mem64[rdi + i] == mem[src_id].mem64[rsi + i];
+        input_len > 0;
+        HasStackSlots(stack, 10);
+        ValidSrcAddrs(mem, in_id, input, 64, in_taint, input_len);
     reads
         rsi; rdi;
     modifies
-        rbp; rax; rcx; rdx;
+        rbp; rax; rbx; rcx; rdx;
         efl;
         mem;
         stack;
 {
-    // ghost var stk_offset_rbp:int := 0;
-    // ghost var stk_offset_in  := 24;
-    // ghost var stk_offset_len := 32;
+    // @todo: use ghost vars to refer to stack vars
 
-    Xor64(rax, rax);
+    // Prolog
     StoreStack64(0, rbp);
-    // Mov64(rbp, rsp); @todo: Add rsp as Ins?
     StoreStack64(6, rdi);
+    StoreStack64(8, rsi);
+    StoreStack64(2, 5381);
+    StoreStack64(4, 0);
+
+    // Unrolled loop body
+    LoadStack64(rax, 2);
+    Shl64(rax, 5);
+    Mov64(rdx, rax);
+    LoadStack64(rax, 2);
+    // AddLea64(rcx, rdx, rax); @fix: fails address sanity assertion (rdx + rax <= 18446744073709551616). There's no AddLea64Wrap.
+    Mov64(rcx, rdx);
+    Add64Wrap(rcx, rax);
+    LoadStack64(rdx, 6);
+    LoadStack64(rax, 4);
+    Add64(rax, rdx);
+    Load64(rax, rax, 0, in_taint, in_id);
+    And64(rax, 0xff); // Hack to access $al register
+    Add64Wrap(rcx, rdx);
+    LoadStack64(rbx, 2);
+    Add64Wrap(rbx, rax);
+    StoreStack64(2, rbx);
+    LoadStack64(rbx, 4);
+    Add64(rbx, 1);
+    StoreStack64(4, rbx);
+
+    // End of unrolled loop
+    LoadStack64(rax, 2); // return value
+
+    // Scrub stack
+    StoreStack64(0, 0);
+    StoreStack64(6, 0);
+    StoreStack64(8, 0);
+    StoreStack64(2, 0);
+    StoreStack64(4, 0);
+
+    // Uncomment to leak on stack and/or public-expected reg
+    // Load64(rbx, rdi, 0, in_taint, in_id); // Reg leak
+    // StoreStack64(8, rbx); // Stack leak
+    // Mov64(rbx, 0); // Clear leak from reg
+
+    // Epilog
+    LoadStack64(rbp, 0);
 }
 
 procedure {:refined} main()
@@ -166,7 +161,7 @@ main:
         .cfi_endproc
 */
 {
-
+    // pass
 }
 
 #verbatim
@@ -174,18 +169,28 @@ main:
 method Main()
     decreases *
 {
+    var stackSize := 0x28; // == sizeof(stack_frame)
     var code := va_code_djb2(Secret, Public);
-    // var ts := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
-    // var b := checkConstantTime("Hash", code, ts);
-    var b := true;
+    var ts := TaintState(
+        map i | 0 <= i < stackSize :: Public,
+        map[X86Esi := Secret, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public],
+        map[],
+        Public
+    );
+    var b := checkConstantTime("djb2", code, ts);
 
     if (b == false) {
         print ("[!] Not constant time\n");
     } else {
         print("[+] Constant time verified successfully\n");
         
-        // var tsExpected := TaintState(map[], map[X86Esi := Public, X86Edi := Public, X86Eax := Public, X86Ebx := Public, X86Ecx := Public, X86Edx := Public], map[], Public);
-        // b := checkLeakage("Hash", code, ts, tsExpected);
+        var tsExpected := TaintState(
+            map i | 0 <= i < stackSize :: Public,
+            map[X86Esi := Secret, X86Edi := Public, X86Eax := Secret, X86Ebx := Public, X86Ecx := Public, X86Edx := Public],
+            map[],
+            Secret // EFLAGS is secret because of bitwise/arithmetic ops. Can't use the popf{lq} trick to clear them so we don't care (for now).
+        );
+        b := checkLeakage("djb2", code, ts, tsExpected);
 
         if (b == false) {
             print ("[!] Leakage detected\n");
